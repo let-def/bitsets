@@ -52,6 +52,10 @@ module type SET = sig
      than [x]. *)
   val above: elt -> t -> t
 
+  (**[below x s] is the set of the elements of [s] that are strictly greater
+     than [x]. *)
+  val below: elt -> t -> t
+
   (** {1 Cardinality} *)
 
   (**[is_empty s] determines whether the [s] is empty. *)

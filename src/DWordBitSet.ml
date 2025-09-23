@@ -103,6 +103,13 @@ let above x s =
   else
     construct (W.above (x - W.bound) hi) W.empty
 
+let below x s =
+  let D (hi, lo) = s in
+  if x < W.bound then
+    construct W.empty (W.below x lo)
+  else
+    construct (W.below (x - W.bound) hi) lo
+
 (* -------------------------------------------------------------------------- *)
 
 (* Cardinality. *)

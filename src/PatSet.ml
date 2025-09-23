@@ -394,7 +394,7 @@ let compare_minimum a b =
 
 let above x t =
   let k, v = encode x in
-  let mask = -v lsl 1 in
+  let mask = -v lsl 1 (* -v: include x, -v lsl 1: exclude x *) in
   let rec loop k t =
     if t.v = 0 || t.k < k then
       empty
@@ -490,6 +490,28 @@ let rec minimum_leaf mask t =
   else
     (mask lor t.k, t.v)
 
+let below x t =
+  let k, v = encode x in
+  let mask = v - 1 in
+  let rec loop k t =
+    if t.v = 0 || t.k < k then
+      t
+    else if t.k = k then
+      match t.v land mask with
+      | 0 -> join k t.l t.r
+      | v -> {k; v; l = t.l; r = t.r}
+    else
+      (* t.k > k *)
+      let msb = extract_bit t.k in
+      if k land msb = msb then
+        (* same msb *)
+        let l = loop (k lxor msb) t.l in
+        join k l t.r
+      else
+        (* lower msb *)
+        loop k t.r
+  in
+  loop k t
 
 let extract_unique_prefix s1 mink minv =
   let rec aux mask s1 =

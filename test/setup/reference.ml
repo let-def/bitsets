@@ -70,6 +70,10 @@ let above x s =
   let _, _, s = split x s in
   s
 
+let below x s =
+  let s, _, _ = split x s in
+  s
+
 let extract_unique_prefix s1 s2 =
   let x2 = minimum s2 in
   let head1, _, _ = split x2 s1 in

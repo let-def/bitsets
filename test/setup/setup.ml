@@ -104,6 +104,9 @@ let () =
   let spec = elt ^> t ^> t in
   declare "above" spec R.above C.above;
 
+  let spec = elt ^> t ^> t in
+  declare "below" spec R.below C.below;
+
   (* Cardinality. *)
 
   let spec = t ^> bool in

@@ -199,6 +199,30 @@ let[@inline] above x s =
   let base = x - i in
   above1 base i s
 
+let rec below1 base i s =
+  match s with
+  | N ->
+      empty
+  | C (o, w, qs) ->
+      if base < o then
+        (* Stop now. *)
+        empty
+      else if base = o then
+        (* Found appropriate cell, split bit field. *)
+        let ss' = W.below i w in
+        if W.is_empty ss' then
+          empty
+        else
+          C (o, ss', N)
+      else
+        (* Not there yet, continue. *)
+        C (o, w, below1 base i qs)
+
+let[@inline] below x s =
+  let i = x mod W.bound in
+  let base = x - i in
+  below1 base i s
+
 (* -------------------------------------------------------------------------- *)
 
 (* Cardinality. *)

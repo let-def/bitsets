@@ -179,6 +179,12 @@ let[@inline] above x s =
   (* Remove these elements. *)
   diff s mask
 
+(* [below x s] is the subset { y ∈ s | y < x }. *)
+
+let[@inline] below x s =
+  let mask = bit x in
+  inter s (mask - 1)
+
 (* -------------------------------------------------------------------------- *)
 
 (* Cardinality. *)

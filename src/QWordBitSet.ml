@@ -150,6 +150,19 @@ let above x s =
     else
       construct (W.above (x - quarter3) hhi) W.empty W.empty W.empty
 
+let below x s =
+  let Q (hhi, hlo, lhi, llo) = s in
+  if x < middle then
+    if x < quarter then
+      construct W.empty W.empty W.empty (W.below x llo)
+    else
+      construct W.empty W.empty (W.below (x - quarter) lhi) llo
+  else
+    if x < quarter3 then
+      construct W.empty (W.below (x - middle) hlo) lhi llo
+    else
+      construct (W.below (x - quarter3) hhi) hlo lhi llo
+
 (* -------------------------------------------------------------------------- *)
 
 (* Cardinality. *)
