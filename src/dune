@@ -1,6 +1,7 @@
 ;; This is a library.
 (library
   (name bitsets)
+  (libraries bit_lib)
   (public_name bitsets)
 )
 

@@ -7,6 +7,7 @@ SUBDIRS := \
   QWordBitSet \
   SparseBitSet \
   BoundedBitSet \
+  PatSet \
 
 .PHONY: test
 test:
