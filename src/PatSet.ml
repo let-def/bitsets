@@ -482,13 +482,6 @@ let find_first_opt f t =
 
 (* TODO *)
 
-let rec minimum_leaf mask t =
-  if t.r.v <> 0 then
-    minimum_leaf mask t.r
-  else if t.l.v <> 0 then
-    minimum_leaf (mask lor extract_bit t.k) t.l
-  else
-    (mask lor t.k, t.v)
 
 let below x t =
   let k, v = encode x in
@@ -513,40 +506,37 @@ let below x t =
   in
   loop k t
 
-let extract_unique_prefix s1 mink minv =
-  let rec aux mask s1 =
-    let k = s1.k lor mask in
-    if k < mink then
-      (s1, empty)
-    else if k = mink then
-      let mask = Bit_lib.extract_lsb minv - 1 in
-      match s1.v land mask, s1.v land lnot mask with
-      | 0, vl ->
-        let lo = s1.r in
-        let hi = {s1 with v = vl; r = empty} in
-        (lo, hi)
-      | vr, 0 ->
-        let lo = {s1 with v = vr; l = empty} in
-        let hi = join s1.k s1.l empty in
-        (lo, hi)
-      | vr, vl ->
-        let lo = {s1 with v = vr; l = empty} in
-        let hi = {s1 with v = vl; r = empty} in
-        (lo, hi)
+let rec extract_unique_prefix1 mask k t =
+  if t.v = 0 || t.k < k then
+    (t, empty)
+  else if t.k = k then
+    match t.v land mask, t.v land lnot mask with
+    | 0 , v1 -> (join k t.l t.r              , {k; v=v1; l = empty; r = empty})
+    | v0, 0  -> ({k; v=v0; l = t.l; r = t.r} , empty                          )
+    | v0, v1 -> ({k; v=v0; l = t.l; r = t.r} , {k; v=v1; l = empty; r = empty})
+  else
+    (* t.k > k *)
+    let msb = extract_bit t.k in
+    if k land msb = msb then
+      (* same msb *)
+      let lb, la = extract_unique_prefix1 mask (k lxor msb) t.l in
+      (join k lb t.r, {t with l=la; r = empty})
     else
-      (* k > mink *)
-      let msb = extract_bit k in
-      if mink land msb = k (* same msb *) then
-        let lo, hi = aux (mask lor msb) s1.l in
-        (join s1.k lo s1.r, {s1 with l = hi; r = empty})
-      else
-        let lo, hi = aux mask s1.r in
-        (lo, {s1 with r = hi})
-  in
-  aux 0 s1
+      (* lower msb *)
+      let rb, ra = extract_unique_prefix1 mask k t.r in
+      (rb, {t with r = ra})
 
 let extract_unique_prefix s1 s2 =
-  let mink, minv = minimum_leaf 0 s2 in
-  extract_unique_prefix s1 mink minv
+  let rec loop s1 mask s2 =
+    if s2.r.v <> 0 then
+      loop s1 mask s2.r
+    else if s2.l.v <> 0 then
+      loop s1 (mask lor extract_bit s2.k) s2.l
+    else
+      let k = mask lor s2.k in
+      let v = Bit_lib.extract_lsb s2.v in
+      extract_unique_prefix1 (v - 1) k s1
+  in
+  loop s1 0 s2
 
 let extract_shared_prefix _ _ = (empty, (empty, empty))

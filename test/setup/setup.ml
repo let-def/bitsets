@@ -189,10 +189,10 @@ let () =
     (compose R.sorted_union RP.prepare)
     (compose C.sorted_union CP.prepare);
 
-  (*let spec = t ^> R.nonempty % t ^> t *** t in
+  let spec = t ^> R.nonempty % t ^> t *** t in
   declare "extract_unique_prefix" spec
     R.extract_unique_prefix
-    C.extract_unique_prefix;*)
+    C.extract_unique_prefix;
 
   (*let spec = t ^> t ^> t *** (t *** t) in
   declare "extract_shared_prefix" spec
