@@ -45,11 +45,11 @@ module type SET = sig
   (**[inter s1 s2] is the intersection of the sets [s1] and [s2]. *)
   val inter: t -> t -> t
 
-  (** [diff s1 s2] is the set difference of the sets [s1] and [s2]. *)
+  (**[diff s1 s2] is the set difference of the sets [s1] and [s2]. *)
   val diff: t -> t -> t
 
-  (** [above x s] is the set of the elements of [s] that are greater
-      than [x]. *)
+  (**[above x s] is the set of the elements of [s] that are strictly greater
+     than [x]. *)
   val above: elt -> t -> t
 
   (** {1 Cardinality} *)
@@ -83,6 +83,7 @@ module type SET = sig
   val subset: t -> t -> bool
 
   (**[quick_subset s1 s2] is a fast test for the property [s1 <> ∅ ∧ s1 ⊆ s2].
+     FIXME: [quick_subset empty empty] holds, this contradicts the property.
 
      It must be the case that either [s1] is a subset of [s2] or [s1] and [s2]
      are disjoint: that is, [s1 ⊆ s2 ⋁ s1 ∩ s2 = ∅] must hold.
@@ -126,7 +127,11 @@ module type SET = sig
   val elements: t -> elt list
 
   (** [find_first_opt p s] returns the least element [x] of [s] such that
-      [p x] is true. It returns [None] if no such element exists. *)
+      [p x] is true. It returns [None] if no such element exists.
+
+      FIXME: In [Stdlib.Set.S], [f] is assumed to be monotonically increasing
+      (to allow binary search).
+  *)
   val find_first_opt: (elt -> bool) -> t -> elt option
 
   (** {1 Decomposition} *)
