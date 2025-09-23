@@ -238,7 +238,7 @@ and inter_right a b =
       (* same msb *)
       let l = inter a.l b.l in
       let r = inter a.r b.r in
-      match lookup (a.k lxor m) b.l with
+      match lookup (a.k lxor m) b.l land a.v with
       | 0 -> join a.k l r
       | v -> {k = a.k; v; l; r}
     else
