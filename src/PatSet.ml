@@ -482,6 +482,28 @@ let find_first_opt f t =
 
 (* TODO *)
 
+let _above_inclusive x t =
+  let k, v = encode x in
+  let mask = -v in
+  let rec loop k t =
+    if t.v = 0 || t.k < k then
+      empty
+    else if t.k = k then
+      match t.v land mask with
+      | 0 -> empty
+      | v -> {k; v; l = empty; r = empty}
+    else
+      (* t.k > k *)
+      let msb = extract_bit t.k in
+      if k land msb = msb then
+        (* same msb *)
+        let l = loop (k lxor msb) t.l in
+        {t with l; r = empty}
+      else
+        (* lower msb *)
+        {t with r = loop k t.r}
+  in
+  loop k t
 
 let below x t =
   let k, v = encode x in
@@ -539,4 +561,65 @@ let extract_unique_prefix s1 s2 =
   in
   loop s1 0 s2
 
-let extract_shared_prefix _ _ = (empty, (empty, empty))
+let rec extract_suffix_to t1 k v =
+  if t1.k > k then
+    let msb = extract_bit t1.k in
+    if k land msb = msb then
+      (* same msb *)
+      let l0, l1 = extract_suffix_to t1.l (k lxor msb) v in
+      {t1 with l = l0; r = empty},
+      join t1.k l1 t1.r
+    else
+      let suffix, t1' = extract_suffix_to t1.r k v in
+      {t1 with r = suffix}, t1'
+  else if t1.k = k then
+    let msb = extract_bit v in
+    match t1.v land (msb lor (msb - 1)) with
+    | 0 -> empty, t1
+    | v ->
+      let suffix = {k = t1.k; v; l = empty; r = empty} in
+      match t1.v lxor v with
+      | 0 -> suffix, join t1.k t1.l t1.r
+      | v' -> suffix, {t1 with v = v'}
+  else
+    empty, t1
+
+let extract_unique_suffix t1 t2 =
+  extract_suffix_to t1 t2.k t2.v
+
+let extract_shared_prefix _s1 _s2 =
+  failwith "TODO"
+
+(*let rec extract_shared_prefix s1 s2 =
+  if s1.k = s2.k then
+    match extract_shared_prefix s1.r s2.r with
+    | Some prefix -> Some prefix
+    | None ->
+      match extract_shared_prefix s1.l s2.l with
+      | Some prefix -> Some (join s1.k prefix s1.r)
+      | None ->
+        if s1.v = s2.v then
+          None
+        else
+          let mask =
+            let s1' = s1.v land lnot s2.v in
+            let s2' = s2.v land lnot s1.v in
+            (Bit_lib.extract_lsb s1' - 1) land
+            (Bit_lib.extract_lsb s2' - 1)
+          in
+          match s1.v land mask with
+          | 0 -> Some (join s1.k s1.l s1.r)
+          | v -> Some {s1 with v}
+  else
+    let m1 = extract_bit s1.k in
+    let m2 = extract_bit s2.k in
+    if m1 = m2 then (
+      (* same msb *)
+      if s2.k > s1.k then
+        (* s2 > s1 *)
+
+      else
+        (* s1 > s2 *)
+    ) else (
+
+    )*)

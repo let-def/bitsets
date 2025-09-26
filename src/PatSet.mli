@@ -29,5 +29,7 @@ include API.SET
   with type elt = int
    and type t := t
 
+val extract_unique_suffix : t -> t -> t * t
+
 (**[check] is used only during testing. *)
 val check : t -> unit
