@@ -199,6 +199,11 @@ let () =
     R.extract_unique_suffix
     C.extract_unique_suffix;
 
+  let spec = t ^> t ^> t *** (t *** t) in
+  declare "extract_shared_suffix" spec
+    R.extract_shared_suffix
+    C.extract_shared_suffix;
+
   (*let spec = t ^> t ^> t *** (t *** t) in
   declare "extract_shared_prefix" spec
     R.extract_shared_prefix

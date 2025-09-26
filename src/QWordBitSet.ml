@@ -404,3 +404,29 @@ let extract_unique_suffix s1 s2 =
     let llo1a, llo1b = W.extract_unique_suffix llo1 llo2 in
     construct hhi1 hlo1 lhi1 llo1a,
     construct W.empty W.empty W.empty llo1b
+
+let extract_shared_suffix s1 s2 =
+  let Q (hhi1, hlo1, lhi1, llo1) = s1
+  and Q (hhi2, hlo2, lhi2, llo2) = s2 in
+  if not (W.equal hhi1 hhi2) then
+    let hhi, (hhi1, hhi2) = W.extract_shared_suffix hhi1 hhi2 in
+    construct hhi W.empty W.empty W.empty,
+    (construct hhi1 hlo1 lhi1 llo1,
+     construct hhi2 hlo2 lhi2 llo2)
+  else if not (W.equal hlo1 hlo2) then
+    let hlo, (hlo1, hlo2) = W.extract_shared_suffix hlo1 hlo2 in
+    construct hhi1 hlo W.empty W.empty,
+    (construct W.empty hlo1 lhi1 llo1,
+     construct W.empty hlo2 lhi2 llo2)
+  else if not (W.equal lhi1 lhi2) then
+    let lhi, (lhi1, lhi2) = W.extract_shared_suffix lhi1 lhi2 in
+    construct hhi1 hlo1 lhi W.empty,
+    (construct W.empty W.empty lhi1 llo1,
+     construct W.empty W.empty lhi2 llo2)
+  else if not (W.equal llo1 llo2) then
+    let llo, (llo1, llo2) = W.extract_shared_suffix llo1 llo2 in
+    construct hhi1 hlo1 lhi1 llo,
+    (construct W.empty W.empty W.empty llo1,
+     construct W.empty W.empty W.empty llo2)
+  else
+    s1, (empty, empty)

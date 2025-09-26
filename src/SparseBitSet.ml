@@ -462,14 +462,16 @@ let rec extract_shared_prefix s1 s2 =
   | _, _ ->
       empty, (s1, s2)
 
+let cons o w s =
+  if W.is_empty w then
+    s
+  else
+    C (o, w, s)
+
 let rec extract_unique_suffix1 o w = function
   | C (o', w', qs) when o' = o ->
     let ws, wr = W.extract_unique_suffix w' w in
-    let rest = if W.is_empty wr then N else C (o', wr, N) in
-    if W.is_empty ws then
-      (qs, rest)
-    else
-      (C (o', ws, qs), rest)
+    (cons o' ws qs, cons o' wr N)
   | C (o', w', qs) when o' < o ->
     let suffix, rest = extract_unique_suffix1 o w qs in
     (suffix, C (o', w', rest))
@@ -482,6 +484,25 @@ let rec extract_unique_suffix s1 = function
     extract_unique_suffix1 o w s1
   | C (_, _, qs) ->
     extract_unique_suffix s1 qs
+
+let rec extract_shared_suffix s1 s2 =
+  match s1, s2 with
+  | C (o1, w1, qs1), C (o2, w2, qs2) ->
+    if o1 = o2 then
+      let suffix, (s1', s2') = extract_shared_suffix qs1 qs2 in
+      if is_empty s1' && is_empty s2' then
+        let w, (w1', w2') = W.extract_shared_suffix w1 w2 in
+        (cons o1 w suffix, (cons o1 w1' s1', cons o1 w2' s2'))
+      else
+        (suffix, (C (o1, w1, s1'), C (o2, w2, s2')))
+    else if o1 < o2 then
+      let suffix, (s1', s2') = extract_shared_suffix qs1 s2 in
+      suffix, (C (o1, w1, s1'), s2')
+    else
+      let suffix, (s1', s2') = extract_shared_suffix s1 qs2 in
+      suffix, (s1', C (o2, w2, s2'))
+  | _, _ ->
+      empty, (s1, s2)
 
 (* -------------------------------------------------------------------------- *)
 

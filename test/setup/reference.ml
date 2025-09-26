@@ -102,6 +102,22 @@ let extract_shared_prefix s1 s2 =
   let head = shared_prefix s1 s2 in
   head, (diff s1 head, diff s2 head)
 
+let rec shared_suffix s1 s2 =
+  if is_empty s1 || is_empty s2 then empty else
+  let x1 = maximum s1
+  and x2 = maximum s2 in
+  if x1 = x2 then
+    let x = x1 in
+    let s1 = remove x s1
+    and s2 = remove x s2 in
+    add x (shared_suffix s1 s2)
+  else
+    empty
+
+let extract_shared_suffix s1 s2 =
+  let head = shared_suffix s1 s2 in
+  head, (diff s1 head, diff s2 head)
+
 (* In OCaml's Set module, [find_first_opt] expects a monotonic predicate.
    We do not want to impose such a restriction while testing, so we roll
    our own (linear-time) search function. *)

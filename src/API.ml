@@ -173,4 +173,6 @@ module type SET = sig
   val extract_shared_prefix : t -> t -> t * (t * t)
 
   val extract_unique_suffix : t -> t -> t * t
+
+  val extract_shared_suffix : t -> t -> t * (t * t)
 end (* SET *)

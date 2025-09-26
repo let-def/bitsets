@@ -275,3 +275,16 @@ let extract_unique_suffix s1 s2 =
   else
     let lo1a, lo1b = W.extract_unique_suffix lo1 lo2 in
     construct hi1 lo1a, construct W.empty lo1b
+
+let extract_shared_suffix s1 s2 =
+  let D (hi1, lo1) = s1
+  and D (hi2, lo2) = s2 in
+  if not (W.equal hi1 hi2) then
+    let hi, (hi1, hi2) = W.extract_shared_suffix hi1 hi2 in
+    construct hi W.empty, (construct hi1 lo1, construct hi2 lo2)
+  else if not (W.equal lo1 lo2) then
+    let lo, (lo1, lo2) = W.extract_shared_suffix lo1 lo2 in
+    construct hi1 lo, (construct W.empty lo1, construct W.empty lo2)
+  else
+    (* [s1] and [s2] are equal. *)
+    s1, (empty, empty)

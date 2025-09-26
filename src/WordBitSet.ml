@@ -345,15 +345,23 @@ let[@inline] extract_shared_prefix s1 s2 =
   let mask = (lsb s1' - 1) land (lsb s2' - 1) in
   inter s1 mask, (diff s1 mask, diff s2 mask)
 
+let msb_mask s =
+  let s = s lor (s lsr 1) in
+  let s = s lor (s lsr 2) in
+  let s = s lor (s lsr 4) in
+  let s = s lor (s lsr 8) in
+  let s = s lor (s lsr 16) in
+  let s = s lor (s lsr 32) in
+  s
+
 let[@inline] extract_unique_suffix s1 s2 =
   assert (not (is_empty s2));
-  let s2 = s2 lor (s2 lsr 1) in
-  let s2 = s2 lor (s2 lsr 2) in
-  let s2 = s2 lor (s2 lsr 4) in
-  let s2 = s2 lor (s2 lsr 8) in
-  let s2 = s2 lor (s2 lsr 16) in
-  let s2 = s2 lor (s2 lsr 32) in
+  let s2 = msb_mask s2 in
   diff s1 s2, inter s1 s2
+
+let[@inline] extract_shared_suffix s1 s2 =
+  let mask = msb_mask (s1 lxor s2) in
+  s1 land lnot mask, (inter s1 mask, inter s2 mask)
 
 (* -------------------------------------------------------------------------- *)
 
