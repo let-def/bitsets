@@ -80,6 +80,12 @@ let extract_unique_prefix s1 s2 =
   let tail1 = diff s1 head1 in
   head1, tail1
 
+let extract_unique_suffix s1 s2 =
+  let x2 = maximum s2 in
+  let _, _, head1 = split x2 s1 in
+  let tail1 = diff s1 head1 in
+  head1, tail1
+
 let rec shared_prefix s1 s2 =
   if is_empty s1 || is_empty s2 then empty else
   let x1 = minimum s1

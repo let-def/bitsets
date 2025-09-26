@@ -345,6 +345,16 @@ let[@inline] extract_shared_prefix s1 s2 =
   let mask = (lsb s1' - 1) land (lsb s2' - 1) in
   inter s1 mask, (diff s1 mask, diff s2 mask)
 
+let[@inline] extract_unique_suffix s1 s2 =
+  assert (not (is_empty s2));
+  let s2 = s2 lor (s2 lsr 1) in
+  let s2 = s2 lor (s2 lsr 2) in
+  let s2 = s2 lor (s2 lsr 4) in
+  let s2 = s2 lor (s2 lsr 8) in
+  let s2 = s2 lor (s2 lsr 16) in
+  let s2 = s2 lor (s2 lsr 32) in
+  diff s1 s2, inter s1 s2
+
 (* -------------------------------------------------------------------------- *)
 
 (* Odds and ends. *)

@@ -380,3 +380,27 @@ let extract_shared_prefix s1 s2 =
      construct hhi2 W.empty W.empty W.empty)
   else
     s1, (empty, empty)
+
+let extract_unique_suffix s1 s2 =
+  assert (not (is_empty s2));
+  let Q (hhi1, hlo1, lhi1, llo1) = s1
+  and Q (hhi2, hlo2, lhi2, llo2) = s2 in
+  if W.equal llo1 llo2 && W.equal lhi1 lhi2 &&
+     W.equal hlo1 hlo2 && W.equal hhi1 hhi2
+  then empty, s1 else (* fast path *)
+  if not (W.is_empty hhi2) then
+    let hhi1a, hhi1b = W.extract_unique_suffix hhi1 hhi2 in
+    construct hhi1a W.empty W.empty W.empty,
+    construct hhi1b hlo1 lhi1 llo1
+  else if not (W.is_empty hlo2) then
+    let hlo1a, hlo1b = W.extract_unique_suffix hlo1 hlo2 in
+    construct hhi1 hlo1a W.empty W.empty,
+    construct W.empty hlo1b lhi1 llo1
+  else if not (W.is_empty lhi2) then
+    let lhi1a, lhi1b = W.extract_unique_suffix lhi1 lhi2 in
+    construct hhi1 hlo1 lhi1a W.empty,
+    construct W.empty W.empty lhi1b llo1
+  else
+    let llo1a, llo1b = W.extract_unique_suffix llo1 llo2 in
+    construct hhi1 hlo1 lhi1 llo1a,
+    construct W.empty W.empty W.empty llo1b

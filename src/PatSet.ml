@@ -574,7 +574,7 @@ let rec extract_suffix_to t1 k v =
       {t1 with r = suffix}, t1'
   else if t1.k = k then
     let msb = extract_bit v in
-    match t1.v land (msb lor (msb - 1)) with
+    match t1.v land lnot (msb lor (msb - 1)) with
     | 0 -> empty, t1
     | v ->
       let suffix = {k = t1.k; v; l = empty; r = empty} in

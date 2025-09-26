@@ -462,6 +462,27 @@ let rec extract_shared_prefix s1 s2 =
   | _, _ ->
       empty, (s1, s2)
 
+let rec extract_unique_suffix1 o w = function
+  | C (o', w', qs) when o' = o ->
+    let ws, wr = W.extract_unique_suffix w' w in
+    let rest = if W.is_empty wr then N else C (o', wr, N) in
+    if W.is_empty ws then
+      (qs, rest)
+    else
+      (C (o', ws, qs), rest)
+  | C (o', w', qs) when o' < o ->
+    let suffix, rest = extract_unique_suffix1 o w qs in
+    (suffix, C (o', w', rest))
+  | qs ->
+    (qs, N)
+
+let rec extract_unique_suffix s1 = function
+  | N -> assert false
+  | C (o, w, N) ->
+    extract_unique_suffix1 o w s1
+  | C (_, _, qs) ->
+    extract_unique_suffix s1 qs
+
 (* -------------------------------------------------------------------------- *)
 
 (* View. *)

@@ -263,3 +263,15 @@ let extract_shared_prefix s1 s2 =
   else
     (* [s1] and [s2] are equal. *)
     s1, (empty, empty)
+
+let extract_unique_suffix s1 s2 =
+  assert (not (is_empty s2));
+  let D (hi1, lo1) = s1
+  and D (hi2, lo2) = s2 in
+  if W.equal hi1 hi2 && W.equal lo1 lo2 then empty, s1 else (* fast path *)
+  if not (W.is_empty hi2) then
+    let hi1a, hi1b = W.extract_unique_suffix hi1 hi2 in
+    construct hi1a W.empty, construct hi1b lo1
+  else
+    let lo1a, lo1b = W.extract_unique_suffix lo1 lo2 in
+    construct hi1 lo1a, construct W.empty lo1b

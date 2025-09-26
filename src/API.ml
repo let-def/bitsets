@@ -172,4 +172,5 @@ module type SET = sig
      [head] is the maximal shared prefix of the sets [s1] and [s2]. *)
   val extract_shared_prefix : t -> t -> t * (t * t)
 
+  val extract_unique_suffix : t -> t -> t * t
 end (* SET *)
