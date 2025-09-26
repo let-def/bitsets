@@ -30,6 +30,7 @@ include API.SET
    and type t := t
 
 val extract_unique_suffix : t -> t -> t * t
+val extract_shared_suffix : t -> t -> t * (t * t)
 
 (**[check] is used only during testing. *)
 val check : t -> unit

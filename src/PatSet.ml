@@ -587,6 +587,38 @@ let rec extract_suffix_to t1 k v =
 let extract_unique_suffix t1 t2 =
   extract_suffix_to t1 t2.k t2.v
 
+let rec extract_shared_suffix t1 t2 =
+  if t1.k <> t2.k then
+    empty, (t1, t2)
+  else if t1.v <> t2.v then
+    let msb = extract_bit (t1.v lxor t2.v) in
+    let mask = msb lor (msb - 1) in
+    let suffix = match t1.v land lnot mask with
+      | 0 -> empty
+      | v -> {k = t1.k; v; l = empty; r = empty}
+    in
+    let t1 = match t1.v land mask with
+      | 0 -> join t1.k t1.l t1.r
+      | v -> {t1 with v}
+    in
+    let t2 = match t2.v land mask with
+      | 0 -> join t2.k t2.l t2.r
+      | v -> {t2 with v}
+    in
+    suffix, (t1, t2)
+  else if t1.v = 0 then
+    empty, (empty, empty)
+  else
+    let ls, (l1, l2) = extract_shared_suffix t1.l t2.l in
+    let rs, (r1, r2) =
+      if is_empty l1 && is_empty l2 then
+        extract_shared_suffix t1.r t2.r
+      else
+        empty, (t1.r, t2.r)
+    in
+    {k = t1.k; v = t1.v; l = ls; r = rs},
+    (join t1.k l1 r1, join t1.k l2 r2)
+
 let extract_shared_prefix _s1 _s2 =
   failwith "TODO"
 
