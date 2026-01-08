@@ -81,11 +81,11 @@ let rec insert k v t =
 let low_level_insert_mask = insert
 
 let rec join k l r =
-  if l.v = 0 then
-    r
-  else
+  match l.v with
+  | 0 -> r
+  | v ->
     let l' = join l.k l.l l.r in
-    {k = (extract_bit k) lor l.k; v = l.v; l = l'; r}
+    {k = (extract_bit k) lor l.k; v; l = l'; r}
 
 let rec remove k v t =
   if k >= t.k then
@@ -106,30 +106,43 @@ let rec remove k v t =
       | r when t.r == r -> t
       | r -> {t with r}
 
+let shareable t1 t2 =
+  t1.k = t2.k && t1.v = t2.v &&
+  t1.l == t2.l && t1.r == t2.r
+
+let safe_share a b =
+  if shareable a.l b.l then
+    share_oldest_l a b;
+  if shareable a.r b.r then
+    share_oldest_r a b
+
 let rec union a b =
-  let a, b = if a.k > b.k then b, a else a, b in
-  (* b.k >= a.k *)
-  if a.v = 0 then b else
-  if a.k = b.k then
-    let l = union a.l b.l in
-    let r = union a.r b.r in
-    match a.v lor b.v with
-    | v when v = b.v && l == b.l && r == b.r -> b
-    | v -> {b with v; l; r}
-  else
-    let m = extract_bit a.k in
-    if m > b.k lsr 1 then
-      match
-        (* TODO: insert_and_union? *)
-        union_fringe (lnot m) a a.l b.l,
-        union a.r b.r
-      with
-      | l, r when l == b.l && r == b.r -> b
-      | l, r -> {b with l; r}
+  if a == b then a else
+    let a, b = if a.k > b.k then b, a else a, b in
+    (* b.k >= a.k *)
+    if a.v = 0 then b else
+    if a.k = b.k then
+      let l = union a.l b.l in
+      let r = union a.r b.r in
+      safe_share a b;
+      match a.v lor b.v with
+      | v when v = b.v && l == b.l && r == b.r ->
+        b
+      | v -> {b with v; l; r}
     else
-      match union a b.r with
-      | r when r == b.r -> b
-      | r -> {b with r}
+      let m = extract_bit a.k in
+      if m > b.k lsr 1 then
+        match
+          (* TODO: insert_and_union? *)
+          union_fringe (lnot m) a a.l b.l,
+          union a.r b.r
+        with
+        | l, r when l == b.l && r == b.r -> b
+        | l, r -> {b with l; r}
+      else
+        match union a b.r with
+        | r when r == b.r -> b
+        | r -> {b with r}
 
 and union_fringe mask a0 a b =
   if a0 == a then union a b
@@ -228,36 +241,38 @@ let rec diff a b =
     else
       diff a b.r
 
-(*let rec inter a b =
-  if a.k > b.k then inter_right b a else inter_right a b
+let rec inter a b =
+  if a == b then
+    a
+  else if a.k > b.k then
+    inter_right b a
+  else
+    inter_right a b
 
 and inter_right a b =
+  (* a.k <= b.k *)
   if b.v = 0 then empty else
-  if a.k >= b.k then
-    if a.k = b.k then
-      diff_update a
-        (a.v land lnot b.v)
-        (diff a.l b.l)
-        (diff a.r b.r)
-    else
-      let m = extract_bit a.k in
-      if m = extract_bit b.k then
-        diff_update a a.v
-          (* TODO: remove_and_diff?
-             skip to b.k land m -1, remove b.l *)
-          (diff (remove (b.k land lnot m) b.v a.l) b.l)
-          (diff a.r b.r)
-      else
-        diff_update a a.v a.l (diff a.r b)
+  if a.k = b.k then
+    let l = inter a.l b.l in
+    let r = inter a.r b.r in
+    safe_share a b;
+    match a.v land b.v with
+    | 0 -> join a.k l r
+    | v -> {k = a.k; v; l; r}
   else
+    (* a.k < b.k *)
     let m = extract_bit a.k in
     if m = extract_bit b.k then
-      diff_update a
-        (a.v land lnot (lookup (a.k land lnot m) b.l))
-        (diff a.l b.l)
-        (diff a.r b.r)
+      (* same msb *)
+      let l = inter a.l b.l in
+      let r = inter a.r b.r in
+      safe_share a b;
+      match lookup (a.k lxor m) b.l land a.v with
+      | 0 -> join a.k l r
+      | v -> {k = a.k; v; l; r}
     else
-      diff a b.r*)
+      (* a.k << b.k *)
+      inter a b.r
 
 let mask_size = Sys.word_size - 1
 
@@ -285,7 +300,7 @@ let rec iter f mask t =
     iter f (mask lor extract_bit t.k) t.l;
     let base = decode_base (mask lor t.k) in
     let v = ref t.v in
-    while !v <> 0 do
+    for _ = 0 to Bit_lib.pop_count t.v - 1 do
       let index = Bit_lib.lsb_index !v in
       v := !v lxor (1 lsl index);
       f (base + index);
@@ -294,20 +309,29 @@ let rec iter f mask t =
 
 let iter f t = iter f 0 t
 
-(*let bits x =
-  let size = Sys.word_size - 1 in
-  let b = Bytes.make size '0' in
-  for i = 0 to size - 1 do
-    if x land (1 lsl (size - i)) <> 0 then
-      Bytes.set b i '1'
-  done;
-  Bytes.unsafe_to_string b*)
+let rec fold f mask t acc =
+  if t.v <> 0 then (
+    let acc = fold f mask t.r acc in
+    let acc = fold f (mask lor extract_bit t.k) t.l acc in
+    let base = decode_base (mask lor t.k) in
+    let v = ref t.v in
+    let acc = ref acc in
+    for _ = 0 to Bit_lib.pop_count t.v - 1 do
+      let index = Bit_lib.lsb_index !v in
+      v := !v lxor (1 lsl index);
+      acc := f (base + index) !acc;
+    done;
+    !acc
+  ) else
+    acc
+
+let fold f t acc = fold f 0 t acc
 
 let rec rev_iter f mask t =
   if t.v <> 0 then (
     let base = decode_base (mask lor t.k) in
     let v = ref t.v in
-    while !v <> 0 do
+    for _ = 0 to Bit_lib.pop_count t.v - 1 do
       let index = Bit_lib.msb_index !v in
       v := !v lxor (1 lsl index);
       f (base + index);
@@ -316,12 +340,275 @@ let rec rev_iter f mask t =
     rev_iter f mask t.r;
   )
 
-let rev_iter f t = rev_iter f 0 t
-
-let validate _ = true
+let _rev_iter f t = rev_iter f 0 t
 
 let is_empty t = t.v = 0
 
 let is_singleton t =
   t.v <> 0 &&
   (t.v land (t.v - 1)) lor t.l.v lor t.r.v = 0
+
+let check _ = ()
+
+let elements s = fold (fun x xs -> x :: xs) s []
+
+let sorted_union xs = List.fold_left union empty xs
+
+let rec disjoint t1 t2 =
+  t1.v = 0 || t2.v = 0 || (
+    t1 != t2 &&
+    if t1.k = t2.k then (
+      t1.v land t2.v = 0 &&
+      disjoint t1.l t2.l &&
+      disjoint t1.r t2.r
+    ) else
+      let msb1 = extract_bit t1.k in
+      let msb2 = extract_bit t2.k in
+      if msb1 = msb2 then (
+        if t1.k > t2.k then
+          lookup t2.k t1 land t2.v = 0 &&
+          disjoint t1.l t2.l &&
+          disjoint t1.r t2.r
+        else
+          lookup t1.k t2 land t1.v = 0 &&
+          disjoint t1.l t2.l &&
+          disjoint t1.r t2.r
+      ) else if t1.k > t2.k then
+        disjoint t1.r t2
+      else
+        disjoint t1 t2.r
+  )
+
+let cardinal t =
+  let rec loop t acc =
+    if t.v = 0 then
+      acc
+    else
+      let acc = acc + Bit_lib.pop_count t.v in
+      let acc = loop t.l acc in
+      let acc = loop t.r acc in
+      acc
+  in
+  loop t 0
+
+let rec minimum mask t =
+  if t.r.v <> 0 then
+    minimum mask t.r
+  else if t.l.v <> 0 then
+    minimum (mask lor extract_bit t.k) t.l
+  else
+    decode_base (mask lor t.k) + Bit_lib.lsb_index t.v
+
+let minimum t =
+  if t.v = 0 then
+    raise Not_found;
+  minimum 0 t
+
+let maximum t =
+  if t.v = 0 then
+    raise Not_found;
+  decode_base t.k + Bit_lib.msb_index t.v
+
+let choose t = minimum t (*TODO: Later make it maximum, it is faster, but testsuite assumes minimum*)
+
+let quick_subset a b =
+  lookup a.k b land a.v <> 0
+
+let compare_minimum a b =
+  match a.v, b.v with
+  | 0, 0 -> 0
+  | 0, _ -> -1
+  | _, 0 -> 1
+  | _ -> Int.compare (minimum a) (minimum b)
+
+let above x t =
+  let k, v = encode x in
+  let mask = -v lsl 1 (* -v: include x, -v lsl 1: exclude x *) in
+  let rec loop k t =
+    if t.v = 0 || t.k < k then
+      empty
+    else if t.k = k then
+      match t.v land mask with
+      | 0 -> empty
+      | v -> {k; v; l = empty; r = empty}
+    else
+      (* t.k > k *)
+      let msb = extract_bit t.k in
+      if k land msb = msb then
+        (* same msb *)
+        let l = loop (k lxor msb) t.l in
+        {t with l; r = empty}
+      else
+        (* lower msb *)
+        {t with r = loop k t.r}
+  in
+  loop k t
+
+let rec subset sub sup =
+  sub.v = 0 || sub == sup || (
+    sup.v <> 0 &&
+    if sub.k = sup.k then
+      sub.v land sup.v = sub.v &&
+      subset sub.l sup.l &&
+      subset sub.r sup.r
+    else
+      sub.k < sup.k &&
+      let msb = extract_bit sup.k in
+      if sub.k land msb = msb then
+        (* Same msb *)
+        lookup (sub.k lxor msb) sup.l land sub.v = sub.v &&
+        subset sub.l sup.l &&
+        subset sub.r sup.r
+      else
+        subset sub sup.r
+  )
+
+exception Found of int
+
+let find_first_opt f t =
+  try
+    iter (fun x -> if f x then raise (Found x)) t;
+    None
+  with Found x -> Some x
+
+(* TODO *)
+
+let _above_inclusive x t =
+  let k, v = encode x in
+  let mask = -v in
+  let rec loop k t =
+    if t.v = 0 || t.k < k then
+      empty
+    else if t.k = k then
+      match t.v land mask with
+      | 0 -> empty
+      | v -> {k; v; l = empty; r = empty}
+    else
+      (* t.k > k *)
+      let msb = extract_bit t.k in
+      if k land msb = msb then
+        (* same msb *)
+        let l = loop (k lxor msb) t.l in
+        {t with l; r = empty}
+      else
+        (* lower msb *)
+        {t with r = loop k t.r}
+  in
+  loop k t
+
+let below x t =
+  let k, v = encode x in
+  let mask = v - 1 in
+  let rec loop k t =
+    if t.v = 0 || t.k < k then
+      t
+    else if t.k = k then
+      match t.v land mask with
+      | 0 -> join k t.l t.r
+      | v -> {k; v; l = t.l; r = t.r}
+    else
+      (* t.k > k *)
+      let msb = extract_bit t.k in
+      if k land msb = msb then
+        (* same msb *)
+        let l = loop (k lxor msb) t.l in
+        join k l t.r
+      else
+        (* lower msb *)
+        loop k t.r
+  in
+  loop k t
+
+let rec extract_unique_prefix1 mask k t =
+  if t.v = 0 || t.k < k then
+    (t, empty)
+  else if t.k = k then
+    match t.v land mask, t.v land lnot mask with
+    | 0 , v1 -> (join k t.l t.r              , {k; v=v1; l = empty; r = empty})
+    | v0, 0  -> ({k; v=v0; l = t.l; r = t.r} , empty                          )
+    | v0, v1 -> ({k; v=v0; l = t.l; r = t.r} , {k; v=v1; l = empty; r = empty})
+  else
+    (* t.k > k *)
+    let msb = extract_bit t.k in
+    if k land msb = msb then
+      (* same msb *)
+      let lb, la = extract_unique_prefix1 mask (k lxor msb) t.l in
+      (join k lb t.r, {t with l=la; r = empty})
+    else
+      (* lower msb *)
+      let rb, ra = extract_unique_prefix1 mask k t.r in
+      (rb, {t with r = ra})
+
+let extract_unique_prefix s1 s2 =
+  let rec loop s1 mask s2 =
+    if s2.r.v <> 0 then
+      loop s1 mask s2.r
+    else if s2.l.v <> 0 then
+      loop s1 (mask lor extract_bit s2.k) s2.l
+    else
+      let k = mask lor s2.k in
+      let v = Bit_lib.extract_lsb s2.v in
+      extract_unique_prefix1 (v - 1) k s1
+  in
+  loop s1 0 s2
+
+let rec extract_suffix_to t1 k v =
+  if t1.k > k then
+    let msb = extract_bit t1.k in
+    if k land msb = msb then
+      (* same msb *)
+      let l0, l1 = extract_suffix_to t1.l (k lxor msb) v in
+      {t1 with l = l0; r = empty},
+      join t1.k l1 t1.r
+    else
+      let suffix, t1' = extract_suffix_to t1.r k v in
+      {t1 with r = suffix}, t1'
+  else if t1.k = k then
+    let msb = extract_bit v in
+    match t1.v land lnot (msb lor (msb - 1)) with
+    | 0 -> empty, t1
+    | v ->
+      let suffix = {k = t1.k; v; l = empty; r = empty} in
+      match t1.v lxor v with
+      | 0 -> suffix, join t1.k t1.l t1.r
+      | v' -> suffix, {t1 with v = v'}
+  else
+    empty, t1
+
+let extract_unique_suffix t1 t2 =
+  extract_suffix_to t1 t2.k t2.v
+
+let rec extract_shared_suffix t1 t2 =
+  if t1.k <> t2.k then
+    empty, (t1, t2)
+  else if t1.v <> t2.v then
+    let msb = extract_bit (t1.v lxor t2.v) in
+    let mask = msb lor (msb - 1) in
+    let suffix = match t1.v land lnot mask with
+      | 0 -> empty
+      | v -> {k = t1.k; v; l = empty; r = empty}
+    in
+    let t1 = match t1.v land mask with
+      | 0 -> join t1.k t1.l t1.r
+      | v -> {t1 with v}
+    in
+    let t2 = match t2.v land mask with
+      | 0 -> join t2.k t2.l t2.r
+      | v -> {t2 with v}
+    in
+    suffix, (t1, t2)
+  else if t1.v = 0 then
+    empty, (empty, empty)
+  else
+    let ls, (l1, l2) = extract_shared_suffix t1.l t2.l in
+    let rs, (r1, r2) =
+      if is_empty l1 && is_empty l2 then
+        extract_shared_suffix t1.r t2.r
+      else
+        empty, (t1.r, t2.r)
+    in
+    {k = t1.k; v = t1.v; l = ls; r = rs},
+    (join t1.k l1 r1, join t1.k l2 r2)
+
+let extract_shared_prefix _s1 _s2 =
+  failwith "TODO"
