@@ -5,6 +5,8 @@ type t = {
   mutable r: t;
 }
 
+type elt = int
+
 let rec empty = {k = 0; v = 0; l = empty; r = empty}
 
 (* Extract the most significant bit of integer `x` *)

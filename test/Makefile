@@ -8,6 +8,7 @@ SUBDIRS := \
   SparseBitSet \
   BoundedBitSet \
   PatSet \
+  PatSetSharing \
 
 .PHONY: test
 test:
